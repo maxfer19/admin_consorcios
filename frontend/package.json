@@ -10,9 +10,9 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "next": "14.2.15",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "next": "15.0.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "axios": "^1.7.7",
     "zustand": "^4.5.5",
     "react-hook-form": "^7.53.0",
@@ -21,20 +21,20 @@
     "date-fns": "^3.6.0",
     "recharts": "^2.12.7",
     "socket.io-client": "^4.7.5",
-    "react-pdf": "^9.1.1",
     "react-hot-toast": "^2.4.1",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^2.5.2"
+    "tailwind-merge": "^2.5.2",
+    "lucide-react": "^0.454.0"
   },
   "devDependencies": {
     "typescript": "^5.6.2",
     "@types/node": "^22.7.4",
-    "@types/react": "^18.3.11",
-    "@types/react-dom": "^18.3.0",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.1",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
     "autoprefixer": "^10.4.20",
-    "eslint": "^8.57.1",
-    "eslint-config-next": "14.2.15"
+    "eslint": "^9.15.0",
+    "eslint-config-next": "15.0.3"
   }
 }
