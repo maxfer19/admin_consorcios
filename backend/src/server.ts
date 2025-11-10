@@ -21,9 +21,15 @@ dotenv.config();
 
 const app: Application = express();
 const server = http.createServer(app);
+
+// Parse CORS origins from environment variable (comma-separated)
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+  .split(',')
+  .map(origin => origin.trim());
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: allowedOrigins,
     credentials: true,
   },
 });
@@ -33,7 +39,7 @@ const PORT = process.env.PORT || 4000;
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: allowedOrigins,
   credentials: true,
 }));
 app.use(compression());
