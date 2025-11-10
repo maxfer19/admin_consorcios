@@ -68,33 +68,40 @@ Plataforma integral para la administración de consorcios que conecta administra
 
 ## 🚦 Inicio Rápido
 
-### 1. Clonar el Repositorio
+> **💡 Tip**: Para una guía detallada paso a paso, consulta [QUICKSTART.md](docs/QUICKSTART.md)
+
+### Método 1: Script Helper (Recomendado) 🎯
 
 ```bash
+# 1. Clonar repositorio
 git clone <repository-url>
 cd admin_consorcios
+
+# 2. Ejecutar helper script interactivo
+./docker-helper.sh
+
+# 3. Seleccionar opción 1 (Iniciar todo)
+# El script se encarga de todo automáticamente
 ```
 
-### 2. Configurar Variables de Entorno
+### Método 2: Docker Compose Manual
 
 ```bash
-# Copiar archivo de ejemplo
-cp .env.example .env
+# 1. Clonar repositorio
+git clone <repository-url>
+cd admin_consorcios
 
-# Editar las variables según tu entorno
-```
+# 2. Aumentar timeout (importante)
+export COMPOSE_HTTP_TIMEOUT=120
 
-### 3. Iniciar con Docker Compose
-
-```bash
-# Iniciar todos los servicios
+# 3. Iniciar servicios
 docker-compose up -d
 
-# Ver logs
-docker-compose logs -f
+# 4. Si el frontend no inicia automáticamente
+docker start komunidad-frontend
 
-# Detener servicios
-docker-compose down
+# 5. Verificar estado
+docker ps
 ```
 
 Los servicios estarán disponibles en:
@@ -314,6 +321,31 @@ docker-compose -f docker-compose.prod.yml up -d
 - `npm run build`: Genera build de producción
 - `npm start`: Inicia servidor de producción
 - `npm run lint`: Ejecuta linter
+
+## 📚 Documentación Adicional
+
+- **[🚀 Guía de Inicio Rápido](docs/QUICKSTART.md)** - Paso a paso para tener Komunidad funcionando en minutos
+- **[🐛 Troubleshooting](docs/TROUBLESHOOTING.md)** - Soluciones a problemas comunes
+- **[📦 Dependencias](docs/DEPENDENCIES.md)** - Detalles sobre versiones y compatibilidad
+- **[🔧 Docker Helper](docker-helper.sh)** - Script interactivo para gestionar Docker
+
+## 🛠️ Utilidades Incluidas
+
+### Docker Helper Script
+
+Script interactivo que simplifica todas las operaciones de Docker:
+
+```bash
+./docker-helper.sh
+```
+
+Funciones:
+- ✅ Iniciar/detener servicios con un click
+- ✅ Reconstrucción automática
+- ✅ Ver logs en tiempo real
+- ✅ Diagnóstico y debug
+- ✅ Limpieza de contenedores y volúmenes
+- ✅ Manejo automático del frontend
 
 ## 🤝 Contribuir
 
