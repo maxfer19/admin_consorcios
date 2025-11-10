@@ -52,7 +52,6 @@ router.post(
       }
 
       // Generate JWT token
-      const expiresIn: string = process.env.JWT_EXPIRES_IN || '7d';
       const token = jwt.sign(
         {
           id: user.id,
@@ -61,7 +60,7 @@ router.post(
           dni: user.dni,
         },
         process.env.JWT_SECRET!,
-        { expiresIn }
+        { expiresIn: '7d' }
       );
 
       // Update last login
