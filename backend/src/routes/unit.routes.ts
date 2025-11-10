@@ -13,14 +13,15 @@ router.post('/', authenticate, authorize('superadmin', 'admin'), async (req: Aut
       unit_number,
       floor,
       unit_type = 'apartment',
-      area_sqm,
+      square_meters,
+      percentage,
       owner_id,
       tenant_id,
     } = req.body;
 
     // Validate required fields
-    if (!building_id || !unit_number || floor === undefined) {
-      throw new AppError('Missing required fields', 400);
+    if (!building_id || !unit_number || !percentage) {
+      throw new AppError('Missing required fields: building_id, unit_number, percentage', 400);
     }
 
     // Check if unit already exists in building
@@ -35,10 +36,10 @@ router.post('/', authenticate, authorize('superadmin', 'admin'), async (req: Aut
 
     // Create unit
     const result = await query(
-      `INSERT INTO units (building_id, unit_number, floor, unit_type, area_sqm, owner_id, tenant_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO units (building_id, unit_number, floor, unit_type, square_meters, percentage, owner_id, tenant_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [building_id, unit_number, floor, unit_type, area_sqm || null, owner_id || null, tenant_id || null]
+      [building_id, unit_number, floor || null, unit_type, square_meters || null, percentage, owner_id || null, tenant_id || null]
     );
 
     res.status(201).json(result.rows[0]);

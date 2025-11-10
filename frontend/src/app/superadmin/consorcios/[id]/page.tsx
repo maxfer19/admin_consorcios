@@ -35,9 +35,12 @@ interface Unit {
   unit_number: string;
   floor: number;
   unit_type: string;
-  area_sqm?: number;
+  square_meters?: number;
+  percentage: number;
   owner_name?: string;
   tenant_name?: string;
+  owner_id?: number;
+  tenant_id?: number;
 }
 
 interface Admin {
@@ -83,7 +86,8 @@ export default function ConsorcioDetailPage() {
     unit_number: '',
     floor: '',
     unit_type: 'apartment',
-    area_sqm: '',
+    square_meters: '',
+    percentage: '',
     owner_id: '',
     tenant_id: '',
   });
@@ -203,7 +207,8 @@ export default function ConsorcioDetailPage() {
       unit_number: '',
       floor: '',
       unit_type: 'apartment',
-      area_sqm: '',
+      square_meters: '',
+      percentage: '',
       owner_id: '',
       tenant_id: '',
     });
@@ -218,9 +223,10 @@ export default function ConsorcioDetailPage() {
       await api.post('/units', {
         building_id: building.id,
         unit_number: unitFormData.unit_number,
-        floor: parseInt(unitFormData.floor),
+        floor: unitFormData.floor ? parseInt(unitFormData.floor) : null,
         unit_type: unitFormData.unit_type,
-        area_sqm: unitFormData.area_sqm ? parseFloat(unitFormData.area_sqm) : null,
+        square_meters: unitFormData.square_meters ? parseFloat(unitFormData.square_meters) : null,
+        percentage: parseFloat(unitFormData.percentage),
         owner_id: unitFormData.owner_id || null,
         tenant_id: unitFormData.tenant_id || null,
       });
@@ -427,6 +433,7 @@ export default function ConsorcioDetailPage() {
                     <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">Piso</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">Tipo</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">Área (m²)</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">% Expensas</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">Propietario</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">Inquilino</th>
                   </tr>
@@ -435,10 +442,13 @@ export default function ConsorcioDetailPage() {
                   {units.map((unit) => (
                     <tr key={unit.id} className="hover:bg-neutral-50">
                       <td className="px-4 py-3 text-sm text-neutral-900">{unit.unit_number}</td>
-                      <td className="px-4 py-3 text-sm text-neutral-900">{unit.floor}</td>
+                      <td className="px-4 py-3 text-sm text-neutral-900">{unit.floor || 'PB'}</td>
                       <td className="px-4 py-3 text-sm text-neutral-600">{unit.unit_type}</td>
                       <td className="px-4 py-3 text-sm text-neutral-600">
-                        {unit.area_sqm ? `${unit.area_sqm} m²` : '-'}
+                        {unit.square_meters ? `${unit.square_meters} m²` : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-neutral-600">
+                        {unit.percentage}%
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-900">
                         {unit.owner_name || <span className="text-neutral-400">-</span>}
@@ -645,13 +655,25 @@ export default function ConsorcioDetailPage() {
               </select>
             </div>
             <Input
-              label="Área (m²)"
+              label="Área (m²) - Opcional"
               type="number"
               step="0.01"
-              value={unitFormData.area_sqm}
-              onChange={(e) => setUnitFormData({ ...unitFormData, area_sqm: e.target.value })}
+              value={unitFormData.square_meters}
+              onChange={(e) => setUnitFormData({ ...unitFormData, square_meters: e.target.value })}
               placeholder="45.5"
             />
+            <Input
+              label="Porcentaje de Expensas (%)"
+              type="number"
+              step="0.01"
+              value={unitFormData.percentage}
+              onChange={(e) => setUnitFormData({ ...unitFormData, percentage: e.target.value })}
+              placeholder="1.25"
+              required
+            />
+            <div className="md:col-span-2 text-xs text-neutral-500 -mt-2">
+              <p>El porcentaje se usa para calcular las expensas comunes. Ej: Si una unidad representa el 1.25% del total, ingrese 1.25</p>
+            </div>
 
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-neutral-700 mb-1">
