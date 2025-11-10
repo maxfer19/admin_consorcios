@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { query } from '../config/database';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
-import { AppError } from '../middleware/errorHandler';
 
 const router = Router();
 
