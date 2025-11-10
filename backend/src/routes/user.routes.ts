@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { query } from '../config/database';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
@@ -77,6 +78,82 @@ router.get('/', authenticate, authorize('superadmin'), async (req: AuthRequest, 
     const result = await query(queryText, params);
 
     res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Create user (SuperAdmin only)
+router.post('/', authenticate, authorize('superadmin'), async (req: AuthRequest, res, next) => {
+  try {
+    const {
+      dni,
+      cuit_cuil,
+      email,
+      password,
+      role,
+      first_name,
+      last_name,
+      phone,
+      phone_secondary,
+      address,
+      city,
+      province,
+      postal_code,
+      status = 'active',
+    } = req.body;
+
+    // Validate required fields
+    if (!email || !password || !role || !first_name || !last_name) {
+      throw new AppError('Missing required fields', 400);
+    }
+
+    // Validate role
+    if (!['superadmin', 'admin', 'owner', 'tenant', 'provider'].includes(role)) {
+      throw new AppError('Invalid role', 400);
+    }
+
+    // Check if user already exists
+    const existingUser = await query(
+      'SELECT id FROM users WHERE email = $1 OR (dni IS NOT NULL AND dni = $2) OR (cuit_cuil IS NOT NULL AND cuit_cuil = $3)',
+      [email, dni || null, cuit_cuil || null]
+    );
+
+    if (existingUser.rows.length > 0) {
+      throw new AppError('User with this email, DNI, or CUIT/CUIL already exists', 400);
+    }
+
+    // Hash password
+    const password_hash = await bcrypt.hash(password, 10);
+
+    // Create user
+    const result = await query(
+      `INSERT INTO users (
+        dni, cuit_cuil, email, password_hash, role, status,
+        first_name, last_name, phone, phone_secondary,
+        address, city, province, postal_code
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      RETURNING id, dni, cuit_cuil, email, role, status, first_name, last_name, phone, created_at`,
+      [
+        dni || null,
+        cuit_cuil || null,
+        email,
+        password_hash,
+        role,
+        status,
+        first_name,
+        last_name,
+        phone || null,
+        phone_secondary || null,
+        address || null,
+        city || null,
+        province || null,
+        postal_code || null,
+      ]
+    );
+
+    res.status(201).json(result.rows[0]);
   } catch (error) {
     next(error);
   }
