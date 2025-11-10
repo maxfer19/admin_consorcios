@@ -13,6 +13,7 @@ import { rateLimiter } from './middleware/rateLimiter';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import buildingRoutes from './routes/building.routes';
+import unitRoutes from './routes/unit.routes';
 import expenseRoutes from './routes/expense.routes';
 import communicationRoutes from './routes/communication.routes';
 
@@ -59,6 +60,7 @@ const API_PREFIX = `/api/${process.env.API_VERSION || 'v1'}`;
 app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/users`, userRoutes);
 app.use(`${API_PREFIX}/buildings`, buildingRoutes);
+app.use(`${API_PREFIX}/units`, unitRoutes);
 app.use(`${API_PREFIX}/expenses`, expenseRoutes);
 app.use(`${API_PREFIX}/communications`, communicationRoutes);
 

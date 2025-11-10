@@ -107,6 +107,31 @@ router.put('/:id', authenticate, authorize('admin', 'superadmin'), async (req: A
   }
 });
 
+// Delete building (SuperAdmin only)
+router.delete('/:id', authenticate, authorize('superadmin'), async (req: AuthRequest, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Check if building has units
+    const unitsResult = await query('SELECT COUNT(*) as count FROM units WHERE building_id = $1', [id]);
+    const unitCount = parseInt(unitsResult.rows[0].count);
+
+    if (unitCount > 0) {
+      throw new AppError(`Cannot delete building with ${unitCount} existing units. Delete units first.`, 400);
+    }
+
+    const result = await query('DELETE FROM buildings WHERE id = $1 RETURNING id', [id]);
+
+    if (result.rows.length === 0) {
+      throw new AppError('Building not found', 404);
+    }
+
+    res.json({ message: 'Building deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get units for a building
 router.get('/:id/units', authenticate, async (req: AuthRequest, res, next) => {
   try {

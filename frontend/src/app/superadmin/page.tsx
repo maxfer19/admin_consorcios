@@ -22,6 +22,8 @@ interface Stats {
   tenants: number;
   providers: number;
   pendingApprovals: number;
+  totalUnits: number;
+  occupiedUnits: number;
 }
 
 export default function SuperAdminDashboard() {
@@ -35,6 +37,8 @@ export default function SuperAdminDashboard() {
     tenants: 0,
     providers: 0,
     pendingApprovals: 0,
+    totalUnits: 0,
+    occupiedUnits: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -75,6 +79,21 @@ export default function SuperAdminDashboard() {
       const providers = users.filter((u: any) => u.role === 'provider').length;
       const pending = users.filter((u: any) => u.status === 'pending').length;
 
+      // Load units from all buildings
+      let totalUnits = 0;
+      let occupiedUnits = 0;
+
+      for (const building of buildings) {
+        try {
+          const unitsResponse = await buildingsApi.getUnits(building.id);
+          const units = unitsResponse.data;
+          totalUnits += units.length;
+          occupiedUnits += units.filter((u: any) => u.owner_id || u.tenant_id).length;
+        } catch (error) {
+          console.error(`Error loading units for building ${building.id}:`, error);
+        }
+      }
+
       setStats({
         buildings: buildings.length,
         users: users.length,
@@ -83,6 +102,8 @@ export default function SuperAdminDashboard() {
         tenants,
         providers,
         pendingApprovals: pending,
+        totalUnits,
+        occupiedUnits,
       });
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -143,7 +164,8 @@ export default function SuperAdminDashboard() {
     { label: 'Propietarios', value: stats.owners, change: '+0%', trend: 'up' },
     { label: 'Inquilinos', value: stats.tenants, change: '+0%', trend: 'up' },
     { label: 'Proveedores', value: stats.providers, change: '+0%', trend: 'up' },
-    { label: 'Expensas Activas', value: 0, change: '0%', trend: 'neutral' },
+    { label: 'Total Unidades', value: stats.totalUnits, change: '+0%', trend: 'up' },
+    { label: 'Unidades Ocupadas', value: stats.occupiedUnits, change: `${stats.totalUnits > 0 ? Math.round((stats.occupiedUnits / stats.totalUnits) * 100) : 0}%`, trend: 'up' },
   ];
 
   return (

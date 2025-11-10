@@ -6,6 +6,7 @@ import { Building2, ArrowLeft, MapPin, Users, Edit, CheckCircle, XCircle, UserPl
 import { buildingsApi, api } from '@/services/api';
 import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
+import { Input } from '@/components/common/Input';
 import toast from 'react-hot-toast';
 
 interface Building {
@@ -61,8 +62,31 @@ export default function ConsorcioDetailPage() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddUnitModal, setShowAddUnitModal] = useState(false);
   const [admins, setAdmins] = useState<Admin[]>([]);
+  const [owners, setOwners] = useState<Admin[]>([]);
+  const [tenants, setTenants] = useState<Admin[]>([]);
   const [selectedAdminId, setSelectedAdminId] = useState<number | null>(null);
+
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    legal_name: '',
+    address: '',
+    city: '',
+    province: '',
+    postal_code: '',
+    is_active: true,
+  });
+
+  const [unitFormData, setUnitFormData] = useState({
+    unit_number: '',
+    floor: '',
+    unit_type: 'apartment',
+    area_sqm: '',
+    owner_id: '',
+    tenant_id: '',
+  });
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -130,6 +154,82 @@ export default function ConsorcioDetailPage() {
       loadBuildingDetails();
     } catch (error: any) {
       toast.error(error.response?.data?.error?.message || 'Error al asignar administrador');
+    }
+  };
+
+  const handleOpenEditModal = () => {
+    if (!building) return;
+    setEditFormData({
+      name: building.name,
+      legal_name: building.legal_name,
+      address: building.address,
+      city: building.city,
+      province: building.province,
+      postal_code: building.postal_code || '',
+      is_active: building.is_active,
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateBuilding = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!building) return;
+
+    try {
+      await buildingsApi.update(building.id, editFormData);
+      toast.success('Consorcio actualizado exitosamente');
+      setShowEditModal(false);
+      loadBuildingDetails();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || 'Error al actualizar consorcio');
+    }
+  };
+
+  const loadOwnersAndTenants = async () => {
+    try {
+      const ownersResponse = await api.get('/users?role=owner&status=active');
+      setOwners(ownersResponse.data);
+
+      const tenantsResponse = await api.get('/users?role=tenant&status=active');
+      setTenants(tenantsResponse.data);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
+
+  const handleOpenAddUnitModal = () => {
+    loadOwnersAndTenants();
+    setUnitFormData({
+      unit_number: '',
+      floor: '',
+      unit_type: 'apartment',
+      area_sqm: '',
+      owner_id: '',
+      tenant_id: '',
+    });
+    setShowAddUnitModal(true);
+  };
+
+  const handleCreateUnit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!building) return;
+
+    try {
+      await api.post('/units', {
+        building_id: building.id,
+        unit_number: unitFormData.unit_number,
+        floor: parseInt(unitFormData.floor),
+        unit_type: unitFormData.unit_type,
+        area_sqm: unitFormData.area_sqm ? parseFloat(unitFormData.area_sqm) : null,
+        owner_id: unitFormData.owner_id || null,
+        tenant_id: unitFormData.tenant_id || null,
+      });
+
+      toast.success('Unidad creada exitosamente');
+      setShowAddUnitModal(false);
+      loadBuildingDetails();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || 'Error al crear unidad');
     }
   };
 
@@ -205,7 +305,7 @@ export default function ConsorcioDetailPage() {
                 </span>
               </div>
             </div>
-            <Button variant="primary" onClick={() => toast.info('Edición en desarrollo')}>
+            <Button variant="primary" onClick={handleOpenEditModal}>
               <Edit className="h-4 w-4 mr-2" />
               Editar
             </Button>
@@ -313,7 +413,7 @@ export default function ConsorcioDetailPage() {
               <Users className="h-6 w-6 text-primary-600 mr-2" />
               <h3 className="text-lg font-semibold text-neutral-900">Unidades</h3>
             </div>
-            <Button variant="primary" onClick={() => toast.info('Agregar unidad en desarrollo')}>
+            <Button variant="primary" onClick={handleOpenAddUnitModal}>
               Agregar Unidad
             </Button>
           </div>
@@ -425,6 +525,184 @@ export default function ConsorcioDetailPage() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Edit Building Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Editar Consorcio"
+        size="xl"
+      >
+        <form onSubmit={handleUpdateBuilding} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Nombre del Consorcio"
+              type="text"
+              value={editFormData.name}
+              onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+              required
+            />
+            <Input
+              label="Razón Social"
+              type="text"
+              value={editFormData.legal_name}
+              onChange={(e) => setEditFormData({ ...editFormData, legal_name: e.target.value })}
+              required
+              className="md:col-span-2"
+            />
+            <Input
+              label="Dirección"
+              type="text"
+              value={editFormData.address}
+              onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+              required
+              className="md:col-span-2"
+            />
+            <Input
+              label="Ciudad"
+              type="text"
+              value={editFormData.city}
+              onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
+              required
+            />
+            <Input
+              label="Provincia"
+              type="text"
+              value={editFormData.province}
+              onChange={(e) => setEditFormData({ ...editFormData, province: e.target.value })}
+              required
+            />
+            <Input
+              label="Código Postal"
+              type="text"
+              value={editFormData.postal_code}
+              onChange={(e) => setEditFormData({ ...editFormData, postal_code: e.target.value })}
+            />
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Estado
+              </label>
+              <select
+                value={editFormData.is_active ? 'active' : 'inactive'}
+                onChange={(e) => setEditFormData({ ...editFormData, is_active: e.target.value === 'active' })}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="active">Activo</option>
+                <option value="inactive">Inactivo</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end space-x-3 pt-4 border-t">
+            <Button type="button" variant="secondary" onClick={() => setShowEditModal(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit">Actualizar</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add Unit Modal */}
+      <Modal
+        isOpen={showAddUnitModal}
+        onClose={() => setShowAddUnitModal(false)}
+        title="Agregar Unidad"
+        size="lg"
+      >
+        <form onSubmit={handleCreateUnit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Número de Unidad"
+              type="text"
+              value={unitFormData.unit_number}
+              onChange={(e) => setUnitFormData({ ...unitFormData, unit_number: e.target.value })}
+              placeholder="A101, 1A, etc."
+              required
+            />
+            <Input
+              label="Piso"
+              type="number"
+              value={unitFormData.floor}
+              onChange={(e) => setUnitFormData({ ...unitFormData, floor: e.target.value })}
+              placeholder="0 para PB, 1, 2, etc."
+              required
+            />
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Tipo de Unidad
+              </label>
+              <select
+                value={unitFormData.unit_type}
+                onChange={(e) => setUnitFormData({ ...unitFormData, unit_type: e.target.value })}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="apartment">Departamento</option>
+                <option value="office">Oficina</option>
+                <option value="commercial">Local Comercial</option>
+                <option value="parking">Cochera</option>
+                <option value="storage">Baulera</option>
+              </select>
+            </div>
+            <Input
+              label="Área (m²)"
+              type="number"
+              step="0.01"
+              value={unitFormData.area_sqm}
+              onChange={(e) => setUnitFormData({ ...unitFormData, area_sqm: e.target.value })}
+              placeholder="45.5"
+            />
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Propietario (Opcional)
+              </label>
+              <select
+                value={unitFormData.owner_id}
+                onChange={(e) => setUnitFormData({ ...unitFormData, owner_id: e.target.value })}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="">Sin propietario asignado</option>
+                {owners.map((owner) => (
+                  <option key={owner.id} value={owner.id}>
+                    {owner.first_name} {owner.last_name} - {owner.email}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-neutral-500 mt-1">
+                Si no hay propietarios disponibles, créalos desde la sección de Usuarios
+              </p>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Inquilino (Opcional)
+              </label>
+              <select
+                value={unitFormData.tenant_id}
+                onChange={(e) => setUnitFormData({ ...unitFormData, tenant_id: e.target.value })}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="">Sin inquilino asignado</option>
+                {tenants.map((tenant) => (
+                  <option key={tenant.id} value={tenant.id}>
+                    {tenant.first_name} {tenant.last_name} - {tenant.email}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-neutral-500 mt-1">
+                Si no hay inquilinos disponibles, créalos desde la sección de Usuarios
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end space-x-3 pt-4 border-t">
+            <Button type="button" variant="secondary" onClick={() => setShowAddUnitModal(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit">Crear Unidad</Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

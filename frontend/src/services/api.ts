@@ -51,6 +51,7 @@ export const buildingsApi = {
   getById: (id: number) => api.get(`/buildings/${id}`),
   create: (data: any) => api.post('/buildings', data),
   update: (id: number, data: any) => api.put(`/buildings/${id}`, data),
+  delete: (id: number) => api.delete(`/buildings/${id}`),
   getUnits: (id: number) => api.get(`/buildings/${id}/units`),
 };
 
