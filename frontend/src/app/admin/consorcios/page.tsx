@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, MapPin, Users, ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
+import { Building2, MapPin, Users, ArrowLeft, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { buildingsApi } from '@/services/api';
 import { Button } from '@/components/common/Button';
 import toast from 'react-hot-toast';
@@ -63,6 +63,30 @@ export default function AdminConsorciosPage() {
       toast.error('Error al cargar consorcios');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleActive = async (buildingId: number, currentStatus: boolean) => {
+    try {
+      await buildingsApi.update(buildingId, { is_active: !currentStatus });
+      toast.success(currentStatus ? 'Consorcio desactivado' : 'Consorcio activado');
+      loadBuildings();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || 'Error al cambiar estado del consorcio');
+    }
+  };
+
+  const handleDelete = async (buildingId: number) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este consorcio? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      await buildingsApi.delete(buildingId);
+      toast.success('Consorcio eliminado exitosamente');
+      loadBuildings();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || 'Error al eliminar consorcio');
     }
   };
 
@@ -180,14 +204,34 @@ export default function AdminConsorciosPage() {
                   </div>
 
                   {/* Actions */}
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => router.push(`/admin/consorcios/${building.id}`)}
-                  >
-                    Ver Detalles
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => router.push(`/admin/consorcios/${building.id}`)}
+                    >
+                      Ver Detalles
+                    </Button>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant={building.is_active ? 'secondary' : 'primary'}
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleToggleActive(building.id, building.is_active)}
+                      >
+                        {building.is_active ? 'Desactivar' : 'Activar'}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleDelete(building.id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}

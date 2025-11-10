@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Building2, ArrowLeft, MapPin, Users, Edit, CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { Building2, ArrowLeft, MapPin, Users, Edit, CheckCircle, XCircle, Trash2, DollarSign, FileText } from 'lucide-react';
 import { buildingsApi, api } from '@/services/api';
 import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
@@ -66,6 +66,7 @@ export default function AdminConsorcioDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
   const [showEditUnitModal, setShowEditUnitModal] = useState(false);
+  const [showEditBuildingModal, setShowEditBuildingModal] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
   const [owners, setOwners] = useState<Owner[]>([]);
   const [tenants, setTenants] = useState<Owner[]>([]);
@@ -78,6 +79,16 @@ export default function AdminConsorcioDetailPage() {
     percentage: '',
     owner_id: '',
     tenant_id: '',
+  });
+
+  const [buildingFormData, setBuildingFormData] = useState({
+    name: '',
+    legal_name: '',
+    address: '',
+    city: '',
+    province: '',
+    postal_code: '',
+    is_active: true,
   });
 
   useEffect(() => {
@@ -223,6 +234,62 @@ export default function AdminConsorcioDetailPage() {
     }
   };
 
+  const handleOpenEditBuildingModal = () => {
+    if (!building) return;
+    setBuildingFormData({
+      name: building.name,
+      legal_name: building.legal_name,
+      address: building.address,
+      city: building.city,
+      province: building.province,
+      postal_code: building.postal_code || '',
+      is_active: building.is_active,
+    });
+    setShowEditBuildingModal(true);
+  };
+
+  const handleUpdateBuilding = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!building) return;
+
+    try {
+      await buildingsApi.update(building.id, buildingFormData);
+      toast.success('Consorcio actualizado exitosamente');
+      setShowEditBuildingModal(false);
+      loadBuildingDetails();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || 'Error al actualizar consorcio');
+    }
+  };
+
+  const handleToggleBuildingActive = async () => {
+    if (!building) return;
+
+    try {
+      await buildingsApi.update(building.id, { is_active: !building.is_active });
+      toast.success(building.is_active ? 'Consorcio desactivado' : 'Consorcio activado');
+      loadBuildingDetails();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || 'Error al cambiar estado del consorcio');
+    }
+  };
+
+  const handleDeleteBuilding = async () => {
+    if (!building) return;
+
+    if (!confirm('¿Estás seguro de que deseas eliminar este consorcio? Esta acción no se puede deshacer y eliminará todas las unidades asociadas.')) {
+      return;
+    }
+
+    try {
+      await buildingsApi.delete(building.id);
+      toast.success('Consorcio eliminado exitosamente');
+      router.push('/admin/consorcios');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || 'Error al eliminar consorcio');
+    }
+  };
+
   if (loading || !building) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -294,6 +361,26 @@ export default function AdminConsorcioDetailPage() {
                   {building.postal_code && ` (CP: ${building.postal_code})`}
                 </span>
               </div>
+            </div>
+            <div className="flex flex-col space-y-2">
+              <Button variant="primary" onClick={handleOpenEditBuildingModal}>
+                <Edit className="h-4 w-4 mr-2" />
+                Editar
+              </Button>
+              <Button
+                variant={building.is_active ? 'secondary' : 'primary'}
+                onClick={handleToggleBuildingActive}
+              >
+                {building.is_active ? 'Desactivar' : 'Activar'}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleDeleteBuilding}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Eliminar
+              </Button>
             </div>
           </div>
         </div>
@@ -379,6 +466,61 @@ export default function AdminConsorcioDetailPage() {
                 </dd>
               </div>
             </dl>
+          </div>
+        </div>
+
+        {/* Financial Dashboard */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          {/* Total Expensas Pendientes */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-medium text-neutral-500">Expensas Pendientes</h4>
+              <div className="bg-yellow-100 p-2 rounded-lg">
+                <DollarSign className="h-5 w-5 text-yellow-600" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-neutral-900">$0</p>
+            <p className="text-xs text-neutral-500 mt-1">Próximamente</p>
+          </div>
+
+          {/* Tasa de Morosidad */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-medium text-neutral-500">Tasa de Morosidad</h4>
+              <div className="bg-red-100 p-2 rounded-lg">
+                <Users className="h-5 w-5 text-red-600" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-neutral-900">0%</p>
+            <p className="text-xs text-neutral-500 mt-1">0 de {units.length} unidades</p>
+          </div>
+
+          {/* Tasa de Ocupación */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-medium text-neutral-500">Tasa de Ocupación</h4>
+              <div className="bg-green-100 p-2 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-neutral-900">
+              {units.length > 0 ? Math.round((units.filter((u) => u.owner_name || u.tenant_name).length / units.length) * 100) : 0}%
+            </p>
+            <p className="text-xs text-neutral-500 mt-1">
+              {units.filter((u) => u.owner_name || u.tenant_name).length} de {units.length} unidades
+            </p>
+          </div>
+
+          {/* Próximo Vencimiento */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-medium text-neutral-500">Próximo Vencimiento</h4>
+              <div className="bg-blue-100 p-2 rounded-lg">
+                <FileText className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-neutral-900">-</p>
+            <p className="text-xs text-neutral-500 mt-1">Próximamente</p>
           </div>
         </div>
 
@@ -694,6 +836,82 @@ export default function AdminConsorcioDetailPage() {
               Cancelar
             </Button>
             <Button type="submit">Actualizar Unidad</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Building Modal */}
+      <Modal
+        isOpen={showEditBuildingModal}
+        onClose={() => setShowEditBuildingModal(false)}
+        title="Editar Consorcio"
+        size="xl"
+      >
+        <form onSubmit={handleUpdateBuilding} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Nombre del Consorcio"
+              type="text"
+              value={buildingFormData.name}
+              onChange={(e) => setBuildingFormData({ ...buildingFormData, name: e.target.value })}
+              required
+            />
+            <Input
+              label="Razón Social"
+              type="text"
+              value={buildingFormData.legal_name}
+              onChange={(e) => setBuildingFormData({ ...buildingFormData, legal_name: e.target.value })}
+              required
+              className="md:col-span-2"
+            />
+            <Input
+              label="Dirección"
+              type="text"
+              value={buildingFormData.address}
+              onChange={(e) => setBuildingFormData({ ...buildingFormData, address: e.target.value })}
+              required
+              className="md:col-span-2"
+            />
+            <Input
+              label="Ciudad"
+              type="text"
+              value={buildingFormData.city}
+              onChange={(e) => setBuildingFormData({ ...buildingFormData, city: e.target.value })}
+              required
+            />
+            <Input
+              label="Provincia"
+              type="text"
+              value={buildingFormData.province}
+              onChange={(e) => setBuildingFormData({ ...buildingFormData, province: e.target.value })}
+              required
+            />
+            <Input
+              label="Código Postal"
+              type="text"
+              value={buildingFormData.postal_code}
+              onChange={(e) => setBuildingFormData({ ...buildingFormData, postal_code: e.target.value })}
+            />
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Estado
+              </label>
+              <select
+                value={buildingFormData.is_active ? 'active' : 'inactive'}
+                onChange={(e) => setBuildingFormData({ ...buildingFormData, is_active: e.target.value === 'active' })}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="active">Activo</option>
+                <option value="inactive">Inactivo</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end space-x-3 pt-4 border-t">
+            <Button type="button" variant="secondary" onClick={() => setShowEditBuildingModal(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit">Actualizar</Button>
           </div>
         </form>
       </Modal>
