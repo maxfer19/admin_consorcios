@@ -13,7 +13,7 @@ export interface AuthRequest extends Request {
 
 export const authenticate = async (
   req: AuthRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ) => {
   try {
@@ -32,7 +32,7 @@ export const authenticate = async (
     const decoded = jwt.verify(token, process.env.JWT_SECRET) as {
       id: number;
       email: string;
-      role: string;
+      role: 'superadmin' | 'admin' | 'owner' | 'tenant' | 'provider';
       dni?: string;
     };
 
@@ -50,7 +50,7 @@ export const authenticate = async (
 };
 
 export const authorize = (...roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
+  return (req: AuthRequest, _res: Response, next: NextFunction) => {
     if (!req.user) {
       return next(new AppError('Not authenticated', 401));
     }
