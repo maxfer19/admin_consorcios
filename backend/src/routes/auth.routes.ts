@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
@@ -16,7 +16,7 @@ router.post(
     body('identifier').notEmpty().withMessage('DNI/CUIT or email is required'),
     body('password').notEmpty().withMessage('Password is required'),
   ],
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -60,7 +60,7 @@ router.post(
           dni: user.dni,
         },
         process.env.JWT_SECRET!,
-        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+        { expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as string }
       );
 
       // Update last login
@@ -90,7 +90,7 @@ router.post(
     body('last_name').notEmpty().withMessage('Last name is required'),
     body('role').isIn(['owner', 'tenant']).withMessage('Role must be owner or tenant'),
   ],
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -141,7 +141,7 @@ router.post(
     body('last_name').notEmpty().withMessage('Last name is required'),
     body('company_name').notEmpty().withMessage('Company name is required'),
   ],
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -163,37 +163,27 @@ router.post(
       // Hash password
       const password_hash = await bcrypt.hash(password, 10);
 
-      // Start transaction
-      const client = await query('BEGIN', []);
+      // Create user
+      const userResult = await query(
+        `INSERT INTO users (cuit_cuil, email, password_hash, role, first_name, last_name, phone, status)
+         VALUES ($1, $2, $3, 'provider', $4, $5, $6, 'pending')
+         RETURNING id, cuit_cuil, email, role, first_name, last_name, status, created_at`,
+        [cuit_cuil, email, password_hash, first_name, last_name, phone]
+      );
 
-      try {
-        // Create user
-        const userResult = await query(
-          `INSERT INTO users (cuit_cuil, email, password_hash, role, first_name, last_name, phone, status)
-           VALUES ($1, $2, $3, 'provider', $4, $5, $6, 'pending')
-           RETURNING id, cuit_cuil, email, role, first_name, last_name, status, created_at`,
-          [cuit_cuil, email, password_hash, first_name, last_name, phone]
-        );
+      const userId = userResult.rows[0].id;
 
-        const userId = userResult.rows[0].id;
+      // Create provider profile
+      await query(
+        `INSERT INTO providers (user_id, company_name, business_type)
+         VALUES ($1, $2, $3)`,
+        [userId, company_name, business_type]
+      );
 
-        // Create provider profile
-        await query(
-          `INSERT INTO providers (user_id, company_name, business_type)
-           VALUES ($1, $2, $3)`,
-          [userId, company_name, business_type]
-        );
-
-        await query('COMMIT', []);
-
-        res.status(201).json({
-          message: 'Provider registration successful. Waiting for administrator approval.',
-          user: userResult.rows[0],
-        });
-      } catch (error) {
-        await query('ROLLBACK', []);
-        throw error;
-      }
+      res.status(201).json({
+        message: 'Provider registration successful. Waiting for administrator approval.',
+        user: userResult.rows[0],
+      });
     } catch (error) {
       next(error);
     }
@@ -201,9 +191,9 @@ router.post(
 );
 
 // Verify email
-router.post('/verify-email', async (req, res, next) => {
+router.post('/verify-email', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { token } = req.body;
+    const { token: _token } = req.body;
 
     // TODO: Implement email verification logic
     res.json({ message: 'Email verified successfully' });
@@ -213,9 +203,9 @@ router.post('/verify-email', async (req, res, next) => {
 });
 
 // Request password reset
-router.post('/forgot-password', async (req, res, next) => {
+router.post('/forgot-password', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email } = req.body;
+    const { email: _email } = req.body;
 
     // TODO: Implement password reset logic
     res.json({ message: 'Password reset email sent' });
