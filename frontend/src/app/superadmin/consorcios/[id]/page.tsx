@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Building2, ArrowLeft, MapPin, Users, Edit, CheckCircle, XCircle } from 'lucide-react';
-import { buildingsApi } from '@/services/api';
+import { Building2, ArrowLeft, MapPin, Users, Edit, CheckCircle, XCircle, UserPlus } from 'lucide-react';
+import { buildingsApi, api } from '@/services/api';
 import { Button } from '@/components/common/Button';
+import { Modal } from '@/components/common/Modal';
 import toast from 'react-hot-toast';
 
 interface Building {
@@ -21,6 +22,7 @@ interface Building {
   floors?: number;
   year_built?: number;
   is_active: boolean;
+  admin_id?: number;
   admin_name?: string;
   admin_email?: string;
   admin_phone?: string;
@@ -37,6 +39,14 @@ interface Unit {
   tenant_name?: string;
 }
 
+interface Admin {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  dni?: string;
+}
+
 const buildingTypeLabels: Record<string, string> = {
   apartment: 'Departamentos',
   house: 'Casas',
@@ -50,6 +60,9 @@ export default function ConsorcioDetailPage() {
   const [building, setBuilding] = useState<Building | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [admins, setAdmins] = useState<Admin[]>([]);
+  const [selectedAdminId, setSelectedAdminId] = useState<number | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -89,6 +102,35 @@ export default function ConsorcioDetailPage() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     router.push('/login');
+  };
+
+  const loadAdmins = async () => {
+    try {
+      const response = await api.get('/users?role=admin&status=active');
+      setAdmins(response.data);
+    } catch (error) {
+      console.error('Error loading admins:', error);
+      toast.error('Error al cargar administradores');
+    }
+  };
+
+  const handleOpenAssignModal = () => {
+    loadAdmins();
+    setSelectedAdminId(building?.admin_id || null);
+    setShowAssignModal(true);
+  };
+
+  const handleAssignAdmin = async () => {
+    if (!selectedAdminId || !building) return;
+
+    try {
+      await buildingsApi.update(building.id, { admin_id: selectedAdminId });
+      toast.success('Administrador asignado exitosamente');
+      setShowAssignModal(false);
+      loadBuildingDetails();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || 'Error al asignar administrador');
+    }
   };
 
   if (loading || !building) {
@@ -205,7 +247,17 @@ export default function ConsorcioDetailPage() {
 
           {/* Administrator Info */}
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-neutral-900 mb-4">Administrador</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-neutral-900">Administrador</h3>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleOpenAssignModal}
+              >
+                <UserPlus className="h-4 w-4 mr-1" />
+                {building.admin_name ? 'Cambiar' : 'Asignar'}
+              </Button>
+            </div>
             {building.admin_name ? (
               <dl className="space-y-3">
                 <div>
@@ -310,6 +362,70 @@ export default function ConsorcioDetailPage() {
           )}
         </div>
       </main>
+
+      {/* Assign Admin Modal */}
+      <Modal
+        isOpen={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+        title="Asignar Administrador"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-neutral-600">
+            Selecciona un administrador para asignar a este consorcio:
+          </p>
+
+          {admins.length > 0 ? (
+            <div className="space-y-2">
+              {admins.map((admin) => (
+                <label
+                  key={admin.id}
+                  className="flex items-center p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    name="admin"
+                    value={admin.id}
+                    checked={selectedAdminId === admin.id}
+                    onChange={() => setSelectedAdminId(admin.id)}
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500"
+                  />
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-neutral-900">
+                      {admin.first_name} {admin.last_name}
+                    </p>
+                    <p className="text-sm text-neutral-500">{admin.email}</p>
+                    {admin.dni && (
+                      <p className="text-xs text-neutral-400">DNI: {admin.dni}</p>
+                    )}
+                  </div>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-neutral-500 py-4 text-center">
+              No hay administradores disponibles. Crea un usuario con rol de administrador primero.
+            </p>
+          )}
+
+          <div className="flex items-center justify-end space-x-3 pt-4 border-t">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowAssignModal(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAssignAdmin}
+              disabled={!selectedAdminId}
+            >
+              Asignar
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

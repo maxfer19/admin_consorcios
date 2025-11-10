@@ -159,6 +159,116 @@ router.post('/', authenticate, authorize('superadmin'), async (req: AuthRequest,
   }
 });
 
+// Update user (SuperAdmin only)
+router.put('/:id', authenticate, authorize('superadmin'), async (req: AuthRequest, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      dni,
+      cuit_cuil,
+      email,
+      password,
+      role,
+      first_name,
+      last_name,
+      phone,
+      phone_secondary,
+      address,
+      city,
+      province,
+      postal_code,
+      status,
+    } = req.body;
+
+    // Build dynamic update query
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramCount = 1;
+
+    if (dni !== undefined) {
+      updates.push(`dni = $${paramCount++}`);
+      values.push(dni || null);
+    }
+    if (cuit_cuil !== undefined) {
+      updates.push(`cuit_cuil = $${paramCount++}`);
+      values.push(cuit_cuil || null);
+    }
+    if (email !== undefined) {
+      updates.push(`email = $${paramCount++}`);
+      values.push(email);
+    }
+    if (password) {
+      const password_hash = await bcrypt.hash(password, 10);
+      updates.push(`password_hash = $${paramCount++}`);
+      values.push(password_hash);
+    }
+    if (role !== undefined) {
+      if (!['superadmin', 'admin', 'owner', 'tenant', 'provider'].includes(role)) {
+        throw new AppError('Invalid role', 400);
+      }
+      updates.push(`role = $${paramCount++}`);
+      values.push(role);
+    }
+    if (first_name !== undefined) {
+      updates.push(`first_name = $${paramCount++}`);
+      values.push(first_name);
+    }
+    if (last_name !== undefined) {
+      updates.push(`last_name = $${paramCount++}`);
+      values.push(last_name);
+    }
+    if (phone !== undefined) {
+      updates.push(`phone = $${paramCount++}`);
+      values.push(phone || null);
+    }
+    if (phone_secondary !== undefined) {
+      updates.push(`phone_secondary = $${paramCount++}`);
+      values.push(phone_secondary || null);
+    }
+    if (address !== undefined) {
+      updates.push(`address = $${paramCount++}`);
+      values.push(address || null);
+    }
+    if (city !== undefined) {
+      updates.push(`city = $${paramCount++}`);
+      values.push(city || null);
+    }
+    if (province !== undefined) {
+      updates.push(`province = $${paramCount++}`);
+      values.push(province || null);
+    }
+    if (postal_code !== undefined) {
+      updates.push(`postal_code = $${paramCount++}`);
+      values.push(postal_code || null);
+    }
+    if (status !== undefined) {
+      if (!['active', 'inactive', 'pending', 'blocked'].includes(status)) {
+        throw new AppError('Invalid status', 400);
+      }
+      updates.push(`status = $${paramCount++}`);
+      values.push(status);
+    }
+
+    if (updates.length === 0) {
+      throw new AppError('No fields to update', 400);
+    }
+
+    values.push(id);
+    const queryText = `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramCount}
+                       RETURNING id, dni, cuit_cuil, email, role, status, first_name, last_name, phone, created_at`;
+
+    const result = await query(queryText, values);
+
+    if (result.rows.length === 0) {
+      throw new AppError('User not found', 404);
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Approve/Reject user (Admin/SuperAdmin)
 router.put('/:id/status', authenticate, authorize('admin', 'superadmin'), async (req: AuthRequest, res, next) => {
   try {
@@ -179,6 +289,28 @@ router.put('/:id/status', authenticate, authorize('admin', 'superadmin'), async 
     }
 
     res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete user (SuperAdmin only)
+router.delete('/:id', authenticate, authorize('superadmin'), async (req: AuthRequest, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Prevent deleting yourself
+    if (req.user!.id === parseInt(id)) {
+      throw new AppError('Cannot delete your own account', 400);
+    }
+
+    const result = await query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+
+    if (result.rows.length === 0) {
+      throw new AppError('User not found', 404);
+    }
+
+    res.json({ message: 'User deleted successfully' });
   } catch (error) {
     next(error);
   }

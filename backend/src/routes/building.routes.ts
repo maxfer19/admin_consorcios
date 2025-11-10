@@ -81,7 +81,7 @@ router.post('/', authenticate, authorize('superadmin'), async (req: AuthRequest,
 router.put('/:id', authenticate, authorize('admin', 'superadmin'), async (req: AuthRequest, res, next) => {
   try {
     const { id } = req.params;
-    const { name, address, city, province, config, is_active } = req.body;
+    const { name, address, city, province, config, is_active, admin_id } = req.body;
 
     const result = await query(
       `UPDATE buildings
@@ -90,10 +90,11 @@ router.put('/:id', authenticate, authorize('admin', 'superadmin'), async (req: A
            city = COALESCE($3, city),
            province = COALESCE($4, province),
            config = COALESCE($5, config),
-           is_active = COALESCE($6, is_active)
-       WHERE id = $7
+           is_active = COALESCE($6, is_active),
+           admin_id = COALESCE($7, admin_id)
+       WHERE id = $8
        RETURNING *`,
-      [name, address, city, province, config, is_active, id]
+      [name, address, city, province, config, is_active, admin_id, id]
     );
 
     if (result.rows.length === 0) {

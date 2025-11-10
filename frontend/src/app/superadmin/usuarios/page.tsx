@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Plus, Shield, Home, Wrench, Search, Filter } from 'lucide-react';
+import { Users, Plus, Shield, Home, Wrench, Search, Filter, Edit, Trash2 } from 'lucide-react';
 import { api } from '@/services/api';
 import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
@@ -36,6 +36,8 @@ export default function UsuariosPage() {
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -158,6 +160,82 @@ export default function UsuariosPage() {
       loadUsers();
     } catch (error) {
       toast.error('Error al actualizar estado');
+    }
+  };
+
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user);
+    setFormData({
+      dni: user.dni || '',
+      cuit_cuil: user.cuit_cuil || '',
+      email: user.email,
+      password: '',
+      role: user.role,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      phone: user.phone || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedUser) return;
+
+    try {
+      const userData: any = {
+        email: formData.email,
+        role: formData.role,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone: formData.phone,
+      };
+
+      // Only include password if changed
+      if (formData.password) {
+        userData.password = formData.password;
+      }
+
+      // Add DNI or CUIT based on role
+      if (formData.role === 'admin' || formData.role === 'owner' || formData.role === 'tenant') {
+        userData.dni = formData.dni;
+      } else if (formData.role === 'provider' || formData.role === 'superadmin') {
+        userData.cuit_cuil = formData.cuit_cuil;
+      }
+
+      await api.put(`/users/${selectedUser.id}`, userData);
+
+      toast.success('Usuario actualizado exitosamente');
+      setShowEditModal(false);
+      setSelectedUser(null);
+      setFormData({
+        dni: '',
+        cuit_cuil: '',
+        email: '',
+        password: '',
+        role: 'admin',
+        first_name: '',
+        last_name: '',
+        phone: '',
+      });
+      loadUsers();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || 'Error al actualizar usuario');
+    }
+  };
+
+  const handleDeleteUser = async (userId: number) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/users/${userId}`);
+      toast.success('Usuario eliminado exitosamente');
+      loadUsers();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || 'Error al eliminar usuario');
     }
   };
 
@@ -349,38 +427,60 @@ export default function UsuariosPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {user.status === 'pending' && (
-                          <div className="flex space-x-2">
+                        <div className="flex items-center space-x-2">
+                          {user.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => handleStatusChange(user.id, 'active')}
+                                className="text-green-600 hover:text-green-900"
+                                title="Aprobar"
+                              >
+                                Aprobar
+                              </button>
+                              <button
+                                onClick={() => handleStatusChange(user.id, 'blocked')}
+                                className="text-red-600 hover:text-red-900"
+                                title="Rechazar"
+                              >
+                                Rechazar
+                              </button>
+                            </>
+                          )}
+                          {user.status === 'active' && user.role !== 'superadmin' && (
+                            <button
+                              onClick={() => handleStatusChange(user.id, 'inactive')}
+                              className="text-yellow-600 hover:text-yellow-900"
+                              title="Desactivar"
+                            >
+                              Desactivar
+                            </button>
+                          )}
+                          {user.status === 'inactive' && (
                             <button
                               onClick={() => handleStatusChange(user.id, 'active')}
                               className="text-green-600 hover:text-green-900"
+                              title="Activar"
                             >
-                              Aprobar
+                              Activar
                             </button>
+                          )}
+                          <button
+                            onClick={() => handleEditUser(user)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Editar usuario"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          {user.role !== 'superadmin' && (
                             <button
-                              onClick={() => handleStatusChange(user.id, 'blocked')}
+                              onClick={() => handleDeleteUser(user.id)}
                               className="text-red-600 hover:text-red-900"
+                              title="Eliminar usuario"
                             >
-                              Rechazar
+                              <Trash2 className="h-4 w-4" />
                             </button>
-                          </div>
-                        )}
-                        {user.status === 'active' && user.role !== 'superadmin' && (
-                          <button
-                            onClick={() => handleStatusChange(user.id, 'inactive')}
-                            className="text-yellow-600 hover:text-yellow-900"
-                          >
-                            Desactivar
-                          </button>
-                        )}
-                        {user.status === 'inactive' && (
-                          <button
-                            onClick={() => handleStatusChange(user.id, 'active')}
-                            className="text-green-600 hover:text-green-900"
-                          >
-                            Activar
-                          </button>
-                        )}
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -496,6 +596,117 @@ export default function UsuariosPage() {
               Cancelar
             </Button>
             <Button type="submit">Crear Usuario</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedUser(null);
+        }}
+        title="Editar Usuario"
+        size="lg"
+      >
+        <form onSubmit={handleUpdateUser} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">Rol</label>
+              <select
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                required
+              >
+                <option value="admin">Administrador de Consorcio</option>
+                <option value="owner">Propietario</option>
+                <option value="tenant">Inquilino</option>
+                <option value="provider">Proveedor</option>
+              </select>
+            </div>
+
+            {(formData.role === 'admin' ||
+              formData.role === 'owner' ||
+              formData.role === 'tenant') && (
+              <Input
+                label="DNI"
+                type="text"
+                value={formData.dni}
+                onChange={(e) => setFormData({ ...formData, dni: e.target.value })}
+                placeholder="12345678"
+                required
+              />
+            )}
+
+            {formData.role === 'provider' && (
+              <Input
+                label="CUIT/CUIL"
+                type="text"
+                value={formData.cuit_cuil}
+                onChange={(e) => setFormData({ ...formData, cuit_cuil: e.target.value })}
+                placeholder="20-12345678-9"
+                required
+              />
+            )}
+
+            <Input
+              label="Email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              placeholder="usuario@ejemplo.com"
+              required
+            />
+
+            <Input
+              label="Contraseña (dejar vacío para no cambiar)"
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              placeholder="Mínimo 6 caracteres"
+            />
+
+            <Input
+              label="Nombre"
+              type="text"
+              value={formData.first_name}
+              onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+              placeholder="Juan"
+              required
+            />
+
+            <Input
+              label="Apellido"
+              type="text"
+              value={formData.last_name}
+              onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+              placeholder="Pérez"
+              required
+            />
+
+            <Input
+              label="Teléfono"
+              type="text"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              placeholder="+54 11 1234-5678"
+            />
+          </div>
+
+          <div className="flex items-center justify-end space-x-3 pt-4 border-t">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setShowEditModal(false);
+                setSelectedUser(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit">Actualizar Usuario</Button>
           </div>
         </form>
       </Modal>
