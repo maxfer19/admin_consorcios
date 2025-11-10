@@ -8,7 +8,6 @@ import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import toast from 'react-hot-toast';
-import bcrypt from 'bcryptjs';
 
 interface User {
   id: number;
@@ -115,24 +114,20 @@ export default function UsuariosPage() {
     e.preventDefault();
 
     try {
-      // Hash password
-      const password_hash = await bcrypt.hash(formData.password, 10);
-
       const userData: any = {
         email: formData.email,
-        password_hash,
+        password: formData.password, // Backend will hash the password
         role: formData.role,
         first_name: formData.first_name,
         last_name: formData.last_name,
         phone: formData.phone,
         status: 'active',
-        email_verified: true,
       };
 
       // Add DNI or CUIT based on role
       if (formData.role === 'admin' || formData.role === 'owner' || formData.role === 'tenant') {
         userData.dni = formData.dni;
-      } else if (formData.role === 'provider') {
+      } else if (formData.role === 'provider' || formData.role === 'superadmin') {
         userData.cuit_cuil = formData.cuit_cuil;
       }
 
