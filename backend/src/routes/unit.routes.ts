@@ -52,19 +52,20 @@ router.post('/', authenticate, authorize('superadmin', 'admin'), async (req: Aut
 router.put('/:id', authenticate, authorize('superadmin', 'admin'), async (req: AuthRequest, res, next) => {
   try {
     const { id } = req.params;
-    const { unit_number, floor, unit_type, area_sqm, owner_id, tenant_id } = req.body;
+    const { unit_number, floor, unit_type, square_meters, percentage, owner_id, tenant_id } = req.body;
 
     const result = await query(
       `UPDATE units
        SET unit_number = COALESCE($1, unit_number),
            floor = COALESCE($2, floor),
            unit_type = COALESCE($3, unit_type),
-           area_sqm = COALESCE($4, area_sqm),
-           owner_id = COALESCE($5, owner_id),
-           tenant_id = COALESCE($6, tenant_id)
-       WHERE id = $7
+           square_meters = COALESCE($4, square_meters),
+           percentage = COALESCE($5, percentage),
+           owner_id = COALESCE($6, owner_id),
+           tenant_id = COALESCE($7, tenant_id)
+       WHERE id = $8
        RETURNING *`,
-      [unit_number, floor, unit_type, area_sqm, owner_id, tenant_id, id]
+      [unit_number, floor, unit_type, square_meters, percentage, owner_id, tenant_id, id]
     );
 
     if (result.rows.length === 0) {

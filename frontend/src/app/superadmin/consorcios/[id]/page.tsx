@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Building2, ArrowLeft, MapPin, Users, Edit, CheckCircle, XCircle, UserPlus } from 'lucide-react';
+import { Building2, ArrowLeft, MapPin, Users, Edit, CheckCircle, XCircle, UserPlus, Trash2 } from 'lucide-react';
 import { buildingsApi, api } from '@/services/api';
 import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
@@ -67,6 +67,8 @@ export default function ConsorcioDetailPage() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
+  const [showEditUnitModal, setShowEditUnitModal] = useState(false);
+  const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [owners, setOwners] = useState<Admin[]>([]);
   const [tenants, setTenants] = useState<Admin[]>([]);
@@ -236,6 +238,59 @@ export default function ConsorcioDetailPage() {
       loadBuildingDetails();
     } catch (error: any) {
       toast.error(error.response?.data?.error?.message || 'Error al crear unidad');
+    }
+  };
+
+  const handleOpenEditUnitModal = (unit: Unit) => {
+    setSelectedUnit(unit);
+    setUnitFormData({
+      unit_number: unit.unit_number,
+      floor: unit.floor?.toString() || '',
+      unit_type: unit.unit_type,
+      square_meters: unit.square_meters?.toString() || '',
+      percentage: unit.percentage.toString(),
+      owner_id: unit.owner_id?.toString() || '',
+      tenant_id: unit.tenant_id?.toString() || '',
+    });
+    loadOwnersAndTenants();
+    setShowEditUnitModal(true);
+  };
+
+  const handleUpdateUnit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUnit) return;
+
+    try {
+      await api.put(`/units/${selectedUnit.id}`, {
+        unit_number: unitFormData.unit_number,
+        floor: unitFormData.floor ? parseInt(unitFormData.floor) : null,
+        unit_type: unitFormData.unit_type,
+        square_meters: unitFormData.square_meters ? parseFloat(unitFormData.square_meters) : null,
+        percentage: parseFloat(unitFormData.percentage),
+        owner_id: unitFormData.owner_id || null,
+        tenant_id: unitFormData.tenant_id || null,
+      });
+
+      toast.success('Unidad actualizada exitosamente');
+      setShowEditUnitModal(false);
+      setSelectedUnit(null);
+      loadBuildingDetails();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || 'Error al actualizar unidad');
+    }
+  };
+
+  const handleDeleteUnit = async (unitId: number) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar esta unidad? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/units/${unitId}`);
+      toast.success('Unidad eliminada exitosamente');
+      loadBuildingDetails();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || 'Error al eliminar unidad');
     }
   };
 
@@ -436,6 +491,7 @@ export default function ConsorcioDetailPage() {
                     <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">% Expensas</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">Propietario</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">Inquilino</th>
+                    <th className="px-4 py-3 text-center text-sm font-medium text-neutral-700">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200">
@@ -455,6 +511,24 @@ export default function ConsorcioDetailPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-900">
                         {unit.tenant_name || <span className="text-neutral-400">-</span>}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex items-center justify-center space-x-2">
+                          <button
+                            onClick={() => handleOpenEditUnitModal(unit)}
+                            className="p-1 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded"
+                            title="Editar unidad"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUnit(unit.id)}
+                            className="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded"
+                            title="Eliminar unidad"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -723,6 +797,129 @@ export default function ConsorcioDetailPage() {
               Cancelar
             </Button>
             <Button type="submit">Crear Unidad</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Unit Modal */}
+      <Modal
+        isOpen={showEditUnitModal}
+        onClose={() => {
+          setShowEditUnitModal(false);
+          setSelectedUnit(null);
+        }}
+        title="Editar Unidad"
+        size="lg"
+      >
+        <form onSubmit={handleUpdateUnit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Número de Unidad"
+              type="text"
+              value={unitFormData.unit_number}
+              onChange={(e) => setUnitFormData({ ...unitFormData, unit_number: e.target.value })}
+              placeholder="A101, 1A, etc."
+              required
+            />
+            <Input
+              label="Piso"
+              type="number"
+              value={unitFormData.floor}
+              onChange={(e) => setUnitFormData({ ...unitFormData, floor: e.target.value })}
+              placeholder="0 para PB, 1, 2, etc."
+            />
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Tipo de Unidad
+              </label>
+              <select
+                value={unitFormData.unit_type}
+                onChange={(e) => setUnitFormData({ ...unitFormData, unit_type: e.target.value })}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="apartment">Departamento</option>
+                <option value="office">Oficina</option>
+                <option value="commercial">Local Comercial</option>
+                <option value="parking">Cochera</option>
+                <option value="storage">Baulera</option>
+              </select>
+            </div>
+            <Input
+              label="Área (m²) - Opcional"
+              type="number"
+              step="0.01"
+              value={unitFormData.square_meters}
+              onChange={(e) => setUnitFormData({ ...unitFormData, square_meters: e.target.value })}
+              placeholder="45.5"
+            />
+            <Input
+              label="Porcentaje de Expensas (%)"
+              type="number"
+              step="0.01"
+              value={unitFormData.percentage}
+              onChange={(e) => setUnitFormData({ ...unitFormData, percentage: e.target.value })}
+              placeholder="1.25"
+              required
+            />
+            <div className="md:col-span-2 text-xs text-neutral-500 -mt-2">
+              <p>El porcentaje se usa para calcular las expensas comunes. Ej: Si una unidad representa el 1.25% del total, ingrese 1.25</p>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Propietario (Opcional)
+              </label>
+              <select
+                value={unitFormData.owner_id}
+                onChange={(e) => setUnitFormData({ ...unitFormData, owner_id: e.target.value })}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="">Sin propietario asignado</option>
+                {owners.map((owner) => (
+                  <option key={owner.id} value={owner.id}>
+                    {owner.first_name} {owner.last_name} - {owner.email}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-neutral-500 mt-1">
+                Puedes cambiar el propietario o dejarlo vacío
+              </p>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Inquilino (Opcional)
+              </label>
+              <select
+                value={unitFormData.tenant_id}
+                onChange={(e) => setUnitFormData({ ...unitFormData, tenant_id: e.target.value })}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="">Sin inquilino asignado</option>
+                {tenants.map((tenant) => (
+                  <option key={tenant.id} value={tenant.id}>
+                    {tenant.first_name} {tenant.last_name} - {tenant.email}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-neutral-500 mt-1">
+                Puedes cambiar el inquilino o dejarlo vacío
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end space-x-3 pt-4 border-t">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setShowEditUnitModal(false);
+                setSelectedUnit(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit">Actualizar Unidad</Button>
           </div>
         </form>
       </Modal>
