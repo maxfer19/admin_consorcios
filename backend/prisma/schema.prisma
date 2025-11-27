@@ -1,0 +1,312 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPERADMIN
+  COURT_OWNER
+  PLAYER
+}
+
+enum PlayerLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  PROFESSIONAL
+}
+
+enum MatchStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  MATCH_FOUND
+  MATCH_JOINED
+  MATCH_LEFT
+  ACK_REMINDER
+  MATCH_CANCELLED
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  CHAT_MESSAGE
+  MATCH_STARTING_SOON
+  PLAYER_NO_ACK
+}
+
+enum Hand {
+  RIGHT
+  LEFT
+}
+
+enum PreferredPosition {
+  DRIVE
+  BACKHAND
+  BOTH
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      UserRole @default(PLAYER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relación con perfil
+  profile Profile?
+
+  // Relación con canchas (solo si es COURT_OWNER)
+  courts Court[]
+
+  // Partidos organizados
+  organizedMatches Match[] @relation("MatchOrganizer")
+
+  // Partidos en los que participa
+  matchPlayers MatchPlayer[]
+
+  // Mensajes enviados
+  chatMessages ChatMessage[]
+
+  // Reviews dadas
+  reviewsGiven Review[] @relation("ReviewsGiven")
+
+  // Reviews recibidas
+  reviewsReceived Review[] @relation("ReviewsReceived")
+
+  // Notificaciones
+  notifications Notification[]
+
+  // Amistades enviadas
+  friendshipsInitiated Friendship[] @relation("FriendshipInitiator")
+
+  // Amistades recibidas
+  friendshipsReceived Friendship[] @relation("FriendshipReceiver")
+
+  // Blacklist
+  blacklistedUsers Blacklist[] @relation("BlacklistInitiator")
+  blacklistedBy    Blacklist[] @relation("BlacklistTarget")
+
+  // Scoring history
+  scoringHistory ScoringHistory[]
+
+  @@map("users")
+}
+
+model Profile {
+  id               String             @id @default(uuid())
+  userId           String             @unique
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName        String
+  lastName         String
+  phone            String?
+  avatar           String?
+  dateOfBirth      DateTime?
+  level            PlayerLevel        @default(BEGINNER)
+  hand             Hand               @default(RIGHT)
+  preferredPosition PreferredPosition @default(BOTH)
+  bio              String?
+  city             String?
+  preferredZones   String[] // Array de zonas preferidas
+
+  // Scoring
+  matchesPlayed    Int                @default(0)
+  matchesCancelled Int                @default(0)
+  noAckCount       Int                @default(0)
+  rating           Float              @default(0.0)
+
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@map("profiles")
+}
+
+model Court {
+  id          String   @id @default(uuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  address     String
+  latitude    Float?
+  longitude   Float?
+  photos      String[] // Array de URLs de fotos
+  amenities   String[] // luz, estacionamiento, vestuarios, duchas, etc.
+  pricePerHour Float
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Turnos de esta cancha
+  timeSlots TimeSlot[]
+
+  @@map("courts")
+}
+
+model TimeSlot {
+  id        String   @id @default(uuid())
+  courtId   String
+  court     Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  startTime DateTime
+  endTime   DateTime
+  price     Float
+  isAvailable Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Partido asociado a este turno
+  match Match?
+
+  @@map("time_slots")
+}
+
+model Match {
+  id                String       @id @default(uuid())
+  timeSlotId        String       @unique
+  timeSlot          TimeSlot     @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
+  organizerId       String
+  organizer         User         @relation("MatchOrganizer", fields: [organizerId], references: [id])
+  spotsAvailable    Int          @default(3) // 1, 2 o 3 spots disponibles
+  requiredLevel     PlayerLevel?
+  status            MatchStatus  @default(PENDING)
+  notes             String?
+
+  // ACK tracking - JSON con {userId: boolean}
+  ackStatus         Json         @default("{}")
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Jugadores del partido
+  players           MatchPlayer[]
+
+  // Mensajes del chat
+  chatMessages      ChatMessage[]
+
+  // Reviews del partido
+  reviews           Review[]
+
+  // Notificaciones relacionadas
+  notifications     Notification[]
+
+  @@map("matches")
+}
+
+model MatchPlayer {
+  id        String   @id @default(uuid())
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime @default(now())
+  hasAcked  Boolean  @default(false)
+  ackedAt   DateTime?
+
+  @@unique([matchId, userId])
+  @@map("match_players")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String
+  createdAt DateTime @default(now())
+
+  @@map("chat_messages")
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  matchId    String
+  match      Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  reviewerId String
+  reviewer   User     @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewedId String
+  reviewed   User     @relation("ReviewsReceived", fields: [reviewedId], references: [id], onDelete: Cascade)
+  rating     Int // 1-5
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  @@unique([matchId, reviewerId, reviewedId])
+  @@map("reviews")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  matchId   String?
+  match     Match?           @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@map("notifications")
+}
+
+model Friendship {
+  id          String   @id @default(uuid())
+  initiatorId String
+  initiator   User     @relation("FriendshipInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  receiverId  String
+  receiver    User     @relation("FriendshipReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  isAccepted  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  acceptedAt  DateTime?
+
+  @@unique([initiatorId, receiverId])
+  @@map("friendships")
+}
+
+model Blacklist {
+  id          String   @id @default(uuid())
+  initiatorId String
+  initiator   User     @relation("BlacklistInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  targetId    String
+  target      User     @relation("BlacklistTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@unique([initiatorId, targetId])
+  @@map("blacklists")
+}
+
+model ScoringHistory {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      String // MATCH_COMPLETED, MATCH_CANCELLED, NO_ACK, REVIEW_RECEIVED
+  points      Int // Puede ser positivo o negativo
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@map("scoring_history")
+}
+
+model ActiveSearchMode {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  isActive  Boolean  @default(true)
+  level     PlayerLevel?
+  zones     String[] // Zonas preferidas para la búsqueda
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("active_search_modes")
+}
