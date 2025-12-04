@@ -1,0 +1,60 @@
+# OSX
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# React Native
+.expo/
+.expo-shared/
+
+# Android
+android/app/build/
+android/app/release/
+android/build/
+android/.gradle/
+android/local.properties
+*.iml
+.gradle/
+local.properties
+*.hprof
+.cxx/
+
+# iOS
+ios/Pods/
+ios/build/
+*.pbxuser
+*.perspective
+*.perspectivev3
+**/*.xcworkspace/xcuserdata
+
+# VS Code
+.vscode/
+
+# IntelliJ
+*.iml
+.idea/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+
+# Bundle artifacts
+*.jsbundle
+
+# CocoaPods
+ios/Pods/
+
+# Temporary files
+*.swp
+*.swo
+*~
+.tmp/
+.temp/
+
+# Environment
+.env
+.env.local
